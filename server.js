@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 
@@ -9,10 +8,47 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.OPENROUTER_API_KEY;
 
+// Official episode update file
+const EPISODE_UPDATE_URL =
+  "https://raw.githubusercontent.com/33jhoefgen-png/ONEPIECE-BOT/main/episode-update.json";
+
 app.get("/", (req, res) => {
   res.send("One Piece Bot server is running!");
 });
 
+// EPISODE UPDATE ENDPOINT
+app.get("/api/episode-update", async (req, res) => {
+  try {
+    const response = await fetch(EPISODE_UPDATE_URL, {
+      headers: {
+        "Cache-Control": "no-cache"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("Episode update file is not available yet.");
+    }
+
+    const update = await response.json();
+
+    res.set("Cache-Control", "no-store");
+    res.json(update);
+
+  } catch (error) {
+    console.error("Episode update error:", error.message);
+
+    res.json({
+      status: "waiting",
+      title: "NO NEW EPISODE UPDATE",
+      message: "We'll show an update here when a new One Piece anime episode is announced.",
+      episode: null,
+      date: null,
+      sourceUrl: "https://one-piece.com/anime/"
+    });
+  }
+});
+
+// ONE PIECE AI CHATBOT
 app.post("/chat", async (req, res) => {
   try {
     const question = req.body.message;
