@@ -13,16 +13,20 @@ app.get("/", (req, res) => {
   res.send("One Piece Bot server is running!");
 });
 
-app.post("/api/chat", async (req, res) => {
+app.post("/chat", async (req, res) => {
   try {
-    const question = req.body.question;
+    const question = req.body.message;
 
     if (!question || typeof question !== "string") {
-      return res.status(400).json({ error: "Please enter a question." });
+      return res.status(400).json({
+        error: "Please enter a question."
+      });
     }
 
     if (!API_KEY) {
-      return res.status(500).json({ error: "Server API key is missing." });
+      return res.status(500).json({
+        error: "Server API key is missing."
+      });
     }
 
     const response = await fetch(
@@ -53,18 +57,22 @@ app.post("/api/chat", async (req, res) => {
 
     if (!response.ok) {
       console.error(data);
-      return res.status(502).json({ error: "The AI service had a problem. Try again." });
+      return res.status(502).json({
+        error: "The AI service had a problem. Try again."
+      });
     }
 
     const answer = data.choices?.[0]?.message?.content;
 
     res.json({
-      answer: answer || "I couldn't think of an answer. Try again!"
+      reply: answer || "I couldn't think of an answer. Try again!"
     });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Something went wrong on the server." });
+    res.status(500).json({
+      error: "Something went wrong on the server."
+    });
   }
 });
 
