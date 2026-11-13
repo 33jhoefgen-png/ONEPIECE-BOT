@@ -1,0 +1,101 @@
+
+name: Check One Piece Anime Episodes
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-episodes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository files
+        uses: actions/checkout@v4
+
+      - name: Check official One Piece anime page
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const FILE = "episode-update.json";
+          const URL = "https://one-piece.com/anime/";
+
+          async function main() {
+            const response = await fetch(URL, {
+              headers: {
+                "User-Agent": "OnePieceEpisodeChecker/1.0"
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error("Could not access the official anime page.");
+            }
+
+            const html = await response.text();
+            const matches = [...html.matchAll(/第\s*(\d+)\s*話/g)];
+
+            if (!matches.length) {
+              throw new Error("Could not find episode numbers on the official page.");
+            }
+
+            const latestEpisode = Math.max(
+              ...matches.map(match => Number(match[1]))
+            );
+
+            let previous = null;
+
+            if (fs.existsSync(FILE)) {
+              previous = JSON.parse(fs.readFileSync(FILE, "utf8"));
+            }
+
+            if (!previous || !previous.latestEpisode) {
+              const baseline = {
+                status: "waiting",
+                title: "NO NEW RELEASE YET",
+                message: "We'll show an update here when a new One Piece anime episode is added.",
+                date: "Waiting for the next episode",
+                latestEpisode
+              };
+
+              fs.writeFileSync(FILE, JSON.stringify(baseline, null, 2));
+              console.log("Saved the starting episode number:", latestEpisode);
+              return;
+            }
+
+            if (latestEpisode > previous.latestEpisode) {
+              const update = {
+                status: "new",
+                title: "NEW ONE PIECE EPISODE ADDED",
+                message: `Episode ${latestEpisode} has been added to the official anime episode list!`,
+                date: new Date().toISOString(),
+                latestEpisode,
+                url: URL
+              };
+
+              fs.writeFileSync(FILE, JSON.stringify(update, null, 2));
+              console.log("New episode detected:", latestEpisode);
+            } else {
+              console.log("No new episode. Latest episode:", latestEpisode);
+            }
+          }
+
+          main().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Save episode update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add episode-update.json
+          git diff --cached --quiet || (
+            git commit -m "Update One Piece episode information"
+            git push
+          )
